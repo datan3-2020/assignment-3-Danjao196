@@ -1,7 +1,7 @@
 ---
 title: "Statistical assignment 3"
-author: "[add your name here] [add your candidate number here - mandatory]"
-date: "[add date here]"
+author: "[Daniel Orchard] [680040213]"
+date: "[13 Feb 2020]"
 output: github_document
 ---
 
@@ -33,7 +33,7 @@ library(data.table)
 
 files <- dir(
              # Select the folder where the files are stored.
-             "[add your path here]",
+             "C:/Users/dan19/Documents/MY DOCUMENTS/Year 2 Term 2 Modules/Data III/Understanding Society Data",
              # Tell R which pattern you want present in the files it will display.
              pattern = "indresp",
              # We want this process to repeat through the entire folder.
@@ -74,7 +74,10 @@ Now we have got the data from all 7 waves in the same data frame **all7** in the
 
 ```{r}
 Long <- all7 %>%
-  ...
+   pivot_longer(cols = a_memorig:g_vote6, names_to = "variable", values_to = "value") %>%
+   separate(variable, into = c("wave","variable"), sep = "_", extra = "merge") %>%
+   pivot_wider(names_from = variable, values_from = value)
+
 Long
 ```
 
@@ -84,14 +87,17 @@ Now we want to filter the data keeping only respondents from the original UKHLS 
 
 ```{r}
 Long <- Long %>%
-        filter(...) %>%
-        mutate(sex_dv = ...) %>%
-        mutate(vote6 = ...)
+        filter(memorig == 1) %>%
+        mutate(sex_dv = ifelse(sex_dv == 2, "female",
+                           ifelse(sex_dv == 1, "male", NA)) ) %>%
+        mutate(vote6 = ifelse(vote6 < 1, NA, vote6))
 
-Long %>%
-        ...
-Long %>%
-        ...
+
+        table(Long$sex_dv)
+
+        table(Long$vote6)
+
+
 
 ```
 
@@ -100,8 +106,13 @@ Long %>%
 Political interest is an ordinal variable, but we will treat it as interval and calculate mean political interest for men and women in each wave.
 
 ```{r}
-meanVote6 <- Long %>%
-        ...
+meanVote6 <- Long %>%  
+  
+  filter(!is.na(sex_dv)) %>%
+       
+  group_by(sex_dv, wave) %>%
+  
+  summarise( meanvoting = mean(vote6, na.rm = TRUE))
         
 meanVote6
 ```
@@ -120,9 +131,13 @@ In the cells of this table you should have mean political interest by sex and wa
 Write a short interpretation of your findings.
 
 ```{r}
-meanVote6 %>%
-        ...
+wide <- meanVote6 %>%
+  pivot_wider(names_from = wave, values_from = meanvoting)
+
+wide
 ```
+
+This data seems to show that for the most part mean political interest has remained fairly stable over time with only minor changes year on year. It also shows that females, on average, have a greater political interest than men as each wave they are about 0.3 higher on the 4 point scale than their male counterparts.
 
 ## Estimate stability of political interest (30 points)
 
@@ -147,6 +162,110 @@ Write the R code that does the following.
 5. Write a short interpretation of your findings.
 
 ```{r}
-...
+# removing pidp that are not present in all 7 waves
+ No_NAs <- all7 %>% 
+  
+      mutate(a_vote6 = recode(a_vote6,
+        `1` = 1, 
+        `2` = 2,
+        `3` = 3,
+        `4` = 4,
+        .default = NA_real_)) %>%
+        
+       mutate(b_vote6 = recode(b_vote6,
+        `1` = 1, 
+        `2` = 2,
+        `3` = 3,
+        `4` = 4,
+        .default = NA_real_)) %>%
+        
+         mutate(c_vote6 = recode(c_vote6,
+        `1` = 1, 
+        `2` = 2,
+        `3` = 3,
+        `4` = 4,
+        .default = NA_real_)) %>%
+        
+         mutate(d_vote6 = recode(d_vote6,
+        `1` = 1, 
+        `2` = 2,
+        `3` = 3,
+        `4` = 4,
+        .default = NA_real_)) %>%
+        
+         mutate(e_vote6 = recode(e_vote6,
+        `1` = 1, 
+        `2` = 2,
+        `3` = 3,
+        `4` = 4,
+        .default = NA_real_)) %>%
+        
+         mutate(f_vote6 = recode(f_vote6,
+        `1` = 1, 
+        `2` = 2,
+        `3` = 3,
+        `4` = 4,
+        .default = NA_real_)) %>%
+          
+         mutate(g_vote6 = recode(g_vote6,
+        `1` = 1, 
+        `2` = 2,
+        `3` = 3,
+        `4` = 4,
+        .default = NA_real_)) %>% 
+  
+         mutate(a_sex_dv = ifelse(a_sex_dv == 2, "female",
+                           ifelse(a_sex_dv == 1, "male", NA))) %>%
+  
+  na.omit() %>% filter(a_memorig == 1)
+
+table(No_NAs$g_memorig)
+## memorig remains consistent along waves. Removing one rmeoves them all
+
+
+
+# calculating Delta for each person in the data
+No_NAs <- No_NAs %>% mutate(delta = abs(b_vote6 - a_vote6) + 
+                                    abs(c_vote6 - b_vote6) +
+                                    abs(d_vote6 - c_vote6) + 
+                                    abs(e_vote6 - d_vote6) + 
+                                    abs(f_vote6 - e_vote6) + 
+                                    abs(g_vote6 - f_vote6))
+# abs computes absolute values so we do this for all of them
+table(No_NAs$delta)
+# no negatives. good
+
+mean(No_NAs$delta)
+
+tapply(No_NAs$delta, No_NAs$a_sex_dv , mean)
+
+#  female     male 
+# 2.494703 2.527760 
+
+meandeltasex <- No_NAs %>% group_by(a_sex_dv) %>% summarise(mean = mean(delta))
+# making it into its own dataframe
+
+#doing the same thing for age
+meandeltaage <- No_NAs %>% group_by(a_age_dv) %>% summarise(mean = mean(delta))
+
+
 
 ```
+# Mean Delta for Men and Women 
+
+```{r}
+ 
+ meandeltasex
+ 
+```
+This table shows that men and women, on average, have similar levels of political change in their lives with men having very slightly higher average deltas.
+
+# Mean Delta for each age (at Wave one)
+```{r}
+scatter.smooth(meandeltaage, main = "Change in Political Interest (Delta) for different ages" ,xlab = "Age", ylab = "Delta: Change in Political Interest over 7 waves")
+# putting it on a scatter plot
+```
+
+This graph appears to show that the mean deltas of people age 20 to 60 at the time of wave 1 are about 2.5. After 60, the mean delta for each age goes up, reaching a peak of around3.5 at age 90. There are quite a few outliers at this point in the graph, perhaps due to the low number of people at that age. 
+
+It must be note that these ages will be slightly offset as they are marked by age at wave one. This means the point at 15 years of age is actually 7 years older and the delta is average change in political interest over those 7 years.
